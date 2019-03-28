@@ -12,6 +12,7 @@ public class ClientHandler {
     private DataInputStream in;
     private DataOutputStream out;
     private String nick;
+    private int id;
 
     public String getNick() {
         return nick;
@@ -33,6 +34,7 @@ public class ClientHandler {
                                 String newNick = server.getAuthService().getNickByLoginAndPass(data[1], data[2]);
                                 if (newNick != null){
                                     if (!server.isNickBusy(newNick)){
+                                        id = server.getAuthService().getIdByLoginAndPass(data[1], data[2]);
                                         nick = newNick;
                                         sendMsg("/authok " + newNick);
                                         server.subscribe(this);
@@ -60,15 +62,14 @@ public class ClientHandler {
                             if (msg.startsWith("/newnick")){
                                 String newNick = msg.split("\\s", 2)[1];
                                 if (newNick != null && !newNick.trim().isEmpty()){
-                                    if (!server.isNickBusy(newNick)){
-                                        int id = server.getAuthService().getAuthorizedIdByNick(nick);
+                                    if (server.getAuthService().isNickFree(newNick)){
                                         if (server.getAuthService().changeNick(id, newNick)){
                                             nick = newNick;
                                             server.unsubscribe(this);
                                             server.subscribe(this);
                                         }
                                         else {
-                                            sendMsg("Ошибка смены ника. Возможно, ник уже занят. Попробуйте ещё раз.");
+                                            sendMsg("Ошибка смены ника. Попробуйте ещё раз.");
                                         }
                                     }
                                     else {

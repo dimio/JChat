@@ -9,6 +9,7 @@ public class AuthService {
     private PreparedStatement psUserRegister;
     private PreparedStatement psChangeNick;
     private PreparedStatement psGetId;
+    private PreparedStatement psNickFree;
 
 
     public void connect() throws ClassNotFoundException, SQLException {
@@ -19,25 +20,35 @@ public class AuthService {
         psFindNick = connection.prepareStatement("SELECT nick FROM users WHERE login = ? AND password = ?;");
         psUserRegister = connection.prepareStatement("INSERT INTO users (login, password, nick) VALUES (?,?,?);");
         psChangeNick = connection.prepareStatement("UPDATE users SET nick = ? WHERE id = ?;");
-        psGetId = connection.prepareStatement("SELECT id FROM users WHERE nick = ?;");
+        psGetId = connection.prepareStatement("SELECT id FROM users WHERE login = ? AND password = ?;");
+        psNickFree = connection.prepareStatement("SELECT * FROM users WHERE nick = ?;");
         //        userRegistration("login1", "pass1", "nick1");
         testUsers();
     }
 
     public boolean changeNick(int id, String newNick) throws SQLException {
-        try{
-            psChangeNick.setString(1, newNick);
-            psChangeNick.setInt(2, id);
-            return psChangeNick.executeUpdate() == 1;
-        } catch (SQLException e){
-            //            if (e.getCause().getMessage().contains("UNIQUE constraint failed: users.nick")){
-            return false;
-        }
+        psChangeNick.setString(1, newNick);
+        psChangeNick.setInt(2, id);
+        return psChangeNick.executeUpdate() == 1;
     }
 
-    public int getAuthorizedIdByNick(String nick) throws SQLException {
-        psGetId.setString(1, nick);
+    public boolean isNickFree(String nick) throws SQLException {
+        psNickFree.setString(1, nick);
+        ResultSet rs = psNickFree.executeQuery();
+        //        rs.last();
+        int resultsCnt = 0;
+        while (rs.next()){
+            resultsCnt++;
+        }
+        return resultsCnt == 0;
+    }
+
+    public int getIdByLoginAndPass(String login, String pass) throws SQLException {
+        psGetId.setString(1, login);
+        int passHash = pass.hashCode();
+        psGetId.setInt(2, passHash);
         ResultSet rs = psGetId.executeQuery();
+
         return rs.getInt("id");
     }
 
