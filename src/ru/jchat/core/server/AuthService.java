@@ -54,6 +54,7 @@ public class AuthService {
 
     public void testUsers() throws SQLException {
         stmt.execute("DELETE FROM users;");
+        stmt.execute("UPDATE sqlite_sequence SET seq=100 WHERE name='users'");
         for (int i = 1; i <= 5; i++){
             userRegistration("login" + i, "pass" + i, "nick" + i);
         }
