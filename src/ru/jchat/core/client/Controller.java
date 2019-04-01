@@ -10,14 +10,14 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.util.Callback;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.ResourceBundle;
 
-public class Controller implements Initializable{
+public class Controller implements Initializable {
     @FXML
     TextArea textArea;
     @FXML
@@ -33,6 +33,8 @@ public class Controller implements Initializable{
     @FXML
     ListView<String> clientsListView;
 
+    private static final int MSG_LOG_SHOW_SIZE = 100;
+
     private Socket socket;
     private DataOutputStream out;
     private DataInputStream in;
@@ -43,7 +45,36 @@ public class Controller implements Initializable{
     private boolean authorized;
     private String myNick;
 
+    private BufferedReader bufferedReader;
+    private BufferedWriter bufferedWriter;
+    private List<String> log;
+
     private ObservableList<String> clientsList;
+
+    private void initLog(String nick) {
+        try{
+            String logName = "msg_log_" + nick + ".txt";
+            File msgLog = new File(logName);
+            msgLog.createNewFile();
+            bufferedWriter = new BufferedWriter(new FileWriter(logName, true));
+            bufferedReader = new BufferedReader(new FileReader(logName));
+            log = new ArrayList<>();
+        }
+        catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    private void showLog() throws IOException {
+        String s;
+        while ((s = bufferedReader.readLine()) != null){
+            log.add(s);
+        }
+        for (int i = (log.size() <= MSG_LOG_SHOW_SIZE) ? 0 : log.size() - MSG_LOG_SHOW_SIZE; i < log.size(); i++){
+            textArea.appendText(log.get(i) + "\n");
+        }
+        bufferedReader.close();
+    }
 
     public void setAuthorized(boolean authorized) {
         this.authorized = authorized;
@@ -54,7 +85,8 @@ public class Controller implements Initializable{
             authPanel.setManaged(false);
             clientsListView.setVisible(true);
             clientsListView.setManaged(true);
-        } else {
+        }
+        else {
             msgPanel.setVisible(false);
             msgPanel.setManaged(false);
             authPanel.setVisible(true);
@@ -70,8 +102,8 @@ public class Controller implements Initializable{
         setAuthorized(false);
     }
 
-    public void connect(){
-        try {
+    public void connect() {
+        try{
             socket = new Socket(SERVER_IP, SERVER_PORT);
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
@@ -81,7 +113,7 @@ public class Controller implements Initializable{
             clientsListView.setCellFactory(new Callback<ListView<String>, ListCell<String>>() {
                 @Override
                 public ListCell<String> call(ListView<String> param) {
-                    return new ListCell<String>(){
+                    return new ListCell<String>() {
                         @Override
                         protected void updateItem(String item, boolean empty) {
                             super.updateItem(item, empty);
@@ -90,7 +122,8 @@ public class Controller implements Initializable{
                                 if (item.equals(myNick)){
                                     setStyle("-fx-font-weight: bold; -fx-background-color: #00ff00;");
                                 }
-                            } else {
+                            }
+                            else {
                                 setGraphic(null);
                                 setText(null);
                             }
@@ -99,50 +132,60 @@ public class Controller implements Initializable{
                 }
             });
             Thread t = new Thread(() -> {
-                try {
-                    while(true){
+                try{
+                    while (true){
                         String s = in.readUTF();
                         if (s.startsWith("/authok ")){
                             setAuthorized(true);
                             myNick = s.split("\\s")[1];
+                            initLog(myNick);
+                            showLog();
                             break;
                         }
                         textArea.appendText(s + "\n");
                     }
-                    while (true) {
+                    while (true){
                         String s = in.readUTF();
                         if (s.startsWith("/")){
                             if (s.startsWith("/clientslist ")){
                                 String[] data = s.split("\\s");
                                 Platform.runLater(() -> {
                                     clientsList.clear();
-                                    for (int i = 1; i < data.length; i++) {
+                                    for (int i = 1; i < data.length; i++){
                                         clientsList.addAll(data[i]);
                                     }
                                 });
                             }
                         }
-                        textArea.appendText(s + "\n");
+                        else {
+                            textArea.appendText(s + "\n");
+                            bufferedWriter.write(s + "\n");
+                            bufferedWriter.flush();
+                        }
                     }
-                } catch (IOException e) {
+                }
+                catch (IOException e){
                     showAlert("Сервер перестал отвечать");
-                } finally {
+                }
+                finally {
                     setAuthorized(false);
-                    try {
+                    try{
                         socket.close();
-                    } catch (IOException e) {
+                    }
+                    catch (IOException e){
                         e.printStackTrace();
                     }
                 }
             });
             t.setDaemon(true);
             t.start();
-        } catch (IOException e) {
+        }
+        catch (IOException e){
             showAlert("Не удалось подключиться к серверу. Проверьте сетевое соединение");
         }
     }
 
-    public void sendAuthMsg(){
+    public void sendAuthMsg() {
         if (loginField.getText().isEmpty() || passField.getText().isEmpty()){
             showAlert("Указаны неполные данные авторизации");
             return;
@@ -150,26 +193,28 @@ public class Controller implements Initializable{
         if (socket == null || socket.isClosed()){
             connect();
         }
-        try { // "/auth login pass"
+        try{ // "/auth login pass"
             out.writeUTF("/auth " + loginField.getText() + " " + passField.getText());
             loginField.clear();
             passField.clear();
-        } catch (IOException e) {
+        }
+        catch (IOException e){
             showAlert("Не удалось подключиться к серверу. Проверьте сетевое соединение");
         }
     }
 
-    public void sendMsg(){
-        try {
+    public void sendMsg() {
+        try{
             out.writeUTF(msgField.getText());
             msgField.clear();
             msgField.requestFocus();
-        } catch (IOException e) {
+        }
+        catch (IOException e){
             showAlert("Не удалось подключиться к серверу. Проверьте сетевое соединение");
         }
     }
 
-    public void showAlert(String msg){
+    public void showAlert(String msg) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Возникли проблемы");
