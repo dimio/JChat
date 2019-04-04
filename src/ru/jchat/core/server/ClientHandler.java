@@ -5,6 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ClientHandler {
     private Server server;
@@ -19,12 +21,14 @@ public class ClientHandler {
     }
 
     public ClientHandler(Server server, Socket socket) {
+        ExecutorService service = Executors.newCachedThreadPool();
         try{
             this.server = server;
             this.socket = socket;
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
-            new Thread(() -> {
+
+            service.submit(new Thread(() -> {
                 try{
                     while (true){
                         String msg = in.readUTF();
@@ -94,10 +98,14 @@ public class ClientHandler {
                     }
                 }
 
-            }).start();
+            }));
+            //            }).start();
 
         } catch (IOException e){
             e.printStackTrace();
+        }
+        finally {
+            service.shutdown();
         }
     }
 
