@@ -1,5 +1,8 @@
 package ru.jchat.core.server;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -9,6 +12,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ClientHandler {
+
+    private static final Logger log = LogManager.getLogger(Server.class);
+
     private Server server;
     private Socket socket;
     private DataInputStream in;
@@ -56,7 +62,7 @@ public class ClientHandler {
                     }
                     while (true){
                         String msg = in.readUTF();
-                        System.out.println(nick + ": " + msg);
+                        log.info(nick + ": " + msg);
                         if (msg.startsWith("/")){
                             if (msg.equals("/end")) break;
                             if (msg.startsWith("/w ")){ // /w nick1 hello java
